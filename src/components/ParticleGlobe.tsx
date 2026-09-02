@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { Box, Cloud, Cpu, Database, Globe2, Radio, Server, Zap } from "lucide-react";
 import { Camera, Geometry, Mesh, Program, Renderer, Transform } from "ogl";
+
+const orbitIcons = [Cpu, Database, Globe2, Server, Cloud, Zap, Box, Radio];
 
 const vertexShader = /* glsl */ `
   precision highp float;
@@ -117,11 +120,13 @@ function createParticles(count: number) {
 export function ParticleGlobe() {
   const mountRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
     const core = coreRef.current;
-    if (!mount || !core) return;
+    const orbit = orbitRef.current;
+    if (!mount || !core || !orbit) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
@@ -168,6 +173,7 @@ export function ParticleGlobe() {
 
     const pointer = { x: 2, y: 2, targetX: 2, targetY: 2, dx: 0, dy: 0, active: 0 };
     let scrollProgress = 0;
+    let scatter = 0;
     let animationFrame = 0;
     let previousTime = performance.now();
     const startTime = previousTime;
@@ -198,7 +204,7 @@ export function ParticleGlobe() {
     };
 
     const handleScroll = () => {
-      scrollProgress = Math.min(window.scrollY / window.innerHeight, 1.5);
+      scrollProgress = Math.min(window.scrollY / window.innerHeight, 2);
     };
 
     const render = (time: number) => {
@@ -212,7 +218,8 @@ export function ParticleGlobe() {
       pointer.dy *= 0.9;
 
       const intro = reducedMotion ? 0 : Math.max(0, 1 - elapsed / 2.2);
-      const cameraTarget = 4.4 - Math.min(scrollProgress, 1) * 1.05;
+      scatter += (Math.min(scrollProgress, 1) - scatter) * 0.06 * frameScale;
+      const cameraTarget = 4.4 + scatter * 0.55;
       camera.position.z += (cameraTarget - camera.position.z) * 0.045 * frameScale;
       camera.position.x += ((pointer.active ? -pointer.x * 0.12 : 0) - camera.position.x) * 0.035 * frameScale;
       camera.position.y += ((pointer.active ? -pointer.y * 0.08 : 0) - camera.position.y) * 0.035 * frameScale;
@@ -249,7 +256,10 @@ export function ParticleGlobe() {
         state.tangentVelocity[index] *= Math.pow(0.91, frameScale);
         state.tangentOffset[index] += state.tangentVelocity[index] * frameScale;
 
-        const radius = state.radius[index] + state.radialOffset[index] + intro * state.launch[index];
+        const radius =
+          state.radius[index] +
+          state.radialOffset[index] +
+          (intro + scatter * 1.7) * state.launch[index];
         positions[index * 3] = unitX * radius;
         positions[index * 3 + 1] = unitY * radius;
         positions[index * 3 + 2] = unitZ * radius;
@@ -259,10 +269,16 @@ export function ParticleGlobe() {
       program.uniforms.uTime.value = elapsed;
       program.uniforms.uMouse.value = [pointer.x, pointer.y];
       program.uniforms.uPointerActive.value = pointer.active;
-      program.uniforms.uDensity.value = 1 - Math.min(scrollProgress, 1) * 0.55;
+      program.uniforms.uDensity.value = 1 - scatter * 0.72;
       points.rotation.z = scrollProgress * 0.2;
       core.style.opacity = String(Math.max(0, 1 - scrollProgress * 1.6));
       core.style.transform = `translate(-50%, -50%) scale(${1 + scrollProgress * 0.45})`;
+
+      const reveal = Math.min(Math.max((scatter - 0.15) / 0.6, 0), 1);
+      const hide = Math.min(Math.max((scrollProgress - 1.4) / 0.45, 0), 1);
+      orbit.style.opacity = String(reveal * (1 - hide));
+      orbit.style.setProperty("--ring", `${reducedMotion ? 0 : elapsed * 9}deg`);
+      orbit.style.transform = `translate(-50%, -50%) scale(${0.72 + reveal * 0.28})`;
 
       renderer.render({ scene, camera });
       animationFrame = window.requestAnimationFrame(render);
@@ -292,6 +308,17 @@ export function ParticleGlobe() {
       <div ref={coreRef} className="globeCore" aria-hidden="true">
         <span />
         <span />
+      </div>
+      <div ref={orbitRef} className="orbitRing" aria-hidden="true">
+        {orbitIcons.map((Icon, index) => (
+          <span
+            key={index}
+            className="orbitItem"
+            style={{ "--a": `${(index / orbitIcons.length) * 360}deg` } as CSSProperties}
+          >
+            <Icon size={18} strokeWidth={1.6} />
+          </span>
+        ))}
       </div>
     </div>
   );
