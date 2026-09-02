@@ -1,10 +1,35 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
-import { Box, Cloud, Cpu, Database, Globe2, Radio, Server, Zap } from "lucide-react";
+import {
+  Activity, Binary, Box, Boxes, Braces, Cloud, Cpu, Database, GitBranch, Globe2,
+  HardDrive, Layers, Lock, Orbit, Radio, Satellite, Server, Share2, Shield,
+  Sparkles, Terminal, Wifi, Zap,
+} from "lucide-react";
 import { Camera, Geometry, Mesh, Program, Renderer, Transform } from "ogl";
 
-const orbitIcons = [Cpu, Database, Globe2, Server, Cloud, Zap, Box, Radio];
+const orbitBelts = [
+  {
+    speed: 9,
+    radius: "min(clamp(96px, 17vh, 190px), 24vw)",
+    icons: [Cpu, Database, Zap, Lock, Share2, Terminal],
+  },
+  {
+    speed: -6,
+    radius: "min(clamp(150px, 26vh, 300px), 34vw)",
+    icons: [Globe2, Server, Cloud, Box, Radio, Wifi, Layers, Shield],
+  },
+  {
+    speed: 4,
+    radius: "min(clamp(205px, 35vh, 410px), 44vw)",
+    icons: [Activity, HardDrive, GitBranch, Orbit, Satellite, Binary, Braces, Sparkles, Boxes],
+  },
+];
+
+const iconPalette = [
+  "#f7c948", "#8b5cf6", "#3b82f6", "#22c55e", "#f97316", "#38bdf8",
+  "#ec4899", "#a3e635", "#2dd4bf", "#818cf8", "#fb7185", "#f5f9ff",
+];
 
 const vertexShader = /* glsl */ `
   precision highp float;
@@ -49,7 +74,8 @@ const vertexShader = /* glsl */ `
     float hover = (1.0 - smoothstep(0.0, 0.24, mouseDistance)) * uPointerActive;
     float depthScale = clamp(5.0 / clipPosition.w, 0.65, 1.5);
     float visible = step(seed, uDensity);
-    gl_PointSize = (1.25 + seed * 1.9) * uPointScale * depthScale * (1.0 + hover * 1.8) * visible;
+    float twinkle = 0.5 + 0.5 * sin(uTime * (2.0 + seed * 7.0) + seed * 121.0);
+    gl_PointSize = (1.25 + seed * 1.9) * uPointScale * depthScale * (1.0 + hover * 1.8) * (0.8 + twinkle * 0.45) * visible;
 
     float cloudA = noise(position * 4.4 + vec3(uTime * 0.08, 0.0, -uTime * 0.06));
     float cloudB = noise(position * 8.0 + vec3(-uTime * 0.04, uTime * 0.05, 0.0));
@@ -61,7 +87,7 @@ const vertexShader = /* glsl */ `
 
     float centerVoid = smoothstep(0.08, 0.56, length(position.xy));
     float rearFade = smoothstep(-1.1, 0.55, position.z);
-    vAlpha = visible * centerVoid * mix(0.22, 1.0, rearFade) * (0.5 + cloudA * 0.65);
+    vAlpha = visible * centerVoid * mix(0.22, 1.0, rearFade) * (0.5 + cloudA * 0.65) * (0.55 + twinkle * 0.75);
   }
 `;
 
@@ -85,6 +111,9 @@ type ParticleState = {
   phi: Float32Array;
   radius: Float32Array;
   launch: Float32Array;
+  scatterDist: Float32Array;
+  introDelay: Float32Array;
+  introDuration: Float32Array;
   radialOffset: Float32Array;
   radialVelocity: Float32Array;
   tangentOffset: Float32Array;
@@ -99,6 +128,9 @@ function createParticles(count: number) {
     phi: new Float32Array(count),
     radius: new Float32Array(count),
     launch: new Float32Array(count),
+    scatterDist: new Float32Array(count),
+    introDelay: new Float32Array(count),
+    introDuration: new Float32Array(count),
     radialOffset: new Float32Array(count),
     radialVelocity: new Float32Array(count),
     tangentOffset: new Float32Array(count),
@@ -110,7 +142,17 @@ function createParticles(count: number) {
     state.theta[index] = Math.PI * (1 + Math.sqrt(5)) * index;
     state.phi[index] = Math.acos(1 - 2 * distributed);
     state.radius[index] = 0.96 + Math.random() * 0.08;
-    state.launch[index] = 0.5 + Math.random() * 1.8;
+    state.scatterDist[index] = 0.5 + Math.random() * 1.8;
+    const fast = Math.random() < 0.55;
+    if (fast) {
+      state.launch[index] = 0.4 + Math.random() * 1.2;
+      state.introDelay[index] = Math.random() * 0.15;
+      state.introDuration[index] = 0.6 + Math.random() * 0.5;
+    } else {
+      state.launch[index] = 2 + Math.random() * 5;
+      state.introDelay[index] = 0.25 + Math.random() * 1.1;
+      state.introDuration[index] = 1.1 + Math.random() * 1.7;
+    }
     seeds[index] = Math.random();
   }
 
@@ -217,7 +259,7 @@ export function ParticleGlobe() {
       pointer.dx *= 0.9;
       pointer.dy *= 0.9;
 
-      const intro = reducedMotion ? 0 : Math.max(0, 1 - elapsed / 2.2);
+      const introActive = !reducedMotion && elapsed < 3.2;
       scatter += (Math.min(scrollProgress, 1) - scatter) * 0.06 * frameScale;
       const cameraTarget = 4.4 + scatter * 0.55;
       camera.position.z += (cameraTarget - camera.position.z) * 0.045 * frameScale;
@@ -230,8 +272,13 @@ export function ParticleGlobe() {
       const spin = reducedMotion ? 0 : elapsed * 0.045;
 
       for (let index = 0; index < particleCount; index += 1) {
-        const theta = state.theta[index] + spin + state.tangentOffset[index];
-        const phi = state.phi[index];
+        const seed = seeds[index];
+        let theta = state.theta[index] + spin + state.tangentOffset[index];
+        let phi = state.phi[index];
+        if (!reducedMotion) {
+          theta += Math.sin(elapsed * (0.5 + seed * 1.3) + index * 1.7) * 0.02;
+          phi += Math.cos(elapsed * (0.4 + seed * 1.1) + index * 2.3) * 0.014;
+        }
         const sinPhi = Math.sin(phi);
         const unitX = sinPhi * Math.cos(theta);
         const unitY = Math.cos(phi);
@@ -256,10 +303,17 @@ export function ParticleGlobe() {
         state.tangentVelocity[index] *= Math.pow(0.91, frameScale);
         state.tangentOffset[index] += state.tangentVelocity[index] * frameScale;
 
+        let introOut = 0;
+        if (introActive) {
+          const t = (elapsed - state.introDelay[index]) / state.introDuration[index];
+          const eased = t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) * (1 - t) * (1 - t);
+          introOut = 1 - eased;
+        }
         const radius =
           state.radius[index] +
           state.radialOffset[index] +
-          (intro + scatter * 1.7) * state.launch[index];
+          introOut * state.launch[index] +
+          scatter * 1.7 * state.scatterDist[index];
         positions[index * 3] = unitX * radius;
         positions[index * 3 + 1] = unitY * radius;
         positions[index * 3 + 2] = unitZ * radius;
@@ -277,8 +331,11 @@ export function ParticleGlobe() {
       const reveal = Math.min(Math.max((scatter - 0.15) / 0.6, 0), 1);
       const hide = Math.min(Math.max((scrollProgress - 1.4) / 0.45, 0), 1);
       orbit.style.opacity = String(reveal * (1 - hide));
-      orbit.style.setProperty("--ring", `${reducedMotion ? 0 : elapsed * 9}deg`);
       orbit.style.transform = `translate(-50%, -50%) scale(${0.72 + reveal * 0.28})`;
+      for (const belt of orbit.children) {
+        const el = belt as HTMLElement;
+        el.style.setProperty("--ring", `${reducedMotion ? 0 : elapsed * Number(el.dataset.speed)}deg`);
+      }
 
       renderer.render({ scene, camera });
       animationFrame = window.requestAnimationFrame(render);
@@ -310,14 +367,28 @@ export function ParticleGlobe() {
         <span />
       </div>
       <div ref={orbitRef} className="orbitRing" aria-hidden="true">
-        {orbitIcons.map((Icon, index) => (
-          <span
-            key={index}
-            className="orbitItem"
-            style={{ "--a": `${(index / orbitIcons.length) * 360}deg` } as CSSProperties}
+        {orbitBelts.map((belt, beltIndex) => (
+          <div
+            key={beltIndex}
+            className="orbitBelt"
+            data-speed={belt.speed}
+            style={{ "--r": belt.radius } as CSSProperties}
           >
-            <Icon size={18} strokeWidth={1.6} />
-          </span>
+            {belt.icons.map((Icon, iconIndex) => (
+              <span
+                key={iconIndex}
+                className="orbitItem"
+                style={
+                  {
+                    "--a": `${(iconIndex / belt.icons.length) * 360 + beltIndex * 24}deg`,
+                    "--c": iconPalette[(beltIndex * 5 + iconIndex) % iconPalette.length],
+                  } as CSSProperties
+                }
+              >
+                <Icon size={17} strokeWidth={1.9} />
+              </span>
+            ))}
+          </div>
         ))}
       </div>
     </div>

@@ -88,30 +88,33 @@ a {
   pointer-events: none;
 }
 
+.orbitBelt {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 .orbitItem {
-  --r: clamp(130px, 27vh, 300px);
   position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  margin: -23px;
-  color: #cfe6f7;
-  border: 1px solid rgba(147, 210, 250, 0.28);
+  width: 42px;
+  height: 42px;
+  margin: -21px;
+  color: #081018;
   border-radius: 50%;
-  background: rgba(6, 14, 22, 0.74);
-  box-shadow: 0 0 20px rgba(39, 143, 236, 0.25);
+  background: var(--c, #cfe6f7);
+  box-shadow: 0 0 18px rgba(39, 143, 236, 0.3);
   transform: rotate(calc(var(--ring, 0deg) + var(--a, 0deg))) translate(var(--r))
     rotate(calc(-1 * (var(--ring, 0deg) + var(--a, 0deg))));
 }
 
 @media (max-width: 720px) {
   .orbitItem {
-    --r: clamp(110px, 21vh, 190px);
-    width: 38px;
-    height: 38px;
-    margin: -19px;
+    width: 34px;
+    height: 34px;
+    margin: -17px;
   }
 }
 
