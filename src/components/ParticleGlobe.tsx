@@ -11,17 +11,23 @@ import { Camera, Geometry, Mesh, Program, Renderer, Transform } from "ogl";
 const orbitBelts = [
   {
     speed: 9,
-    radius: "min(clamp(96px, 17vh, 190px), 24vw)",
+    radius: "min(clamp(120px, 19vh, 210px), 24vw)",
+    size: 44,
+    iconSize: 17,
     icons: [Cpu, Database, Zap, Lock, Share2, Terminal],
   },
   {
     speed: -6,
-    radius: "min(clamp(150px, 26vh, 300px), 34vw)",
+    radius: "min(clamp(175px, 27vh, 300px), 33vw)",
+    size: 35,
+    iconSize: 14,
     icons: [Globe2, Server, Cloud, Box, Radio, Wifi, Layers, Shield],
   },
   {
     speed: 4,
-    radius: "min(clamp(205px, 35vh, 410px), 44vw)",
+    radius: "min(clamp(230px, 36vh, 400px), 43vw)",
+    size: 27,
+    iconSize: 11,
     icons: [Activity, HardDrive, GitBranch, Orbit, Satellite, Binary, Braces, Sparkles, Boxes],
   },
 ];
@@ -217,6 +223,8 @@ export function ParticleGlobe() {
     let scrollProgress = 0;
     let scatter = 0;
     let animationFrame = 0;
+    const orbitItems = Array.from(orbit.querySelectorAll<HTMLElement>(".orbitItem"));
+    const orbitDelays = orbitItems.map(() => Math.random() * 0.45);
     let previousTime = performance.now();
     const startTime = previousTime;
 
@@ -334,7 +342,18 @@ export function ParticleGlobe() {
       orbit.style.transform = `translate(-50%, -50%) scale(${0.72 + reveal * 0.28})`;
       for (const belt of orbit.children) {
         const el = belt as HTMLElement;
-        el.style.setProperty("--ring", `${reducedMotion ? 0 : elapsed * Number(el.dataset.speed)}deg`);
+        if (el.dataset.speed) {
+          el.style.setProperty("--ring", `${reducedMotion ? 0 : elapsed * Number(el.dataset.speed)}deg`);
+        }
+      }
+      for (let i = 0; i < orbitItems.length; i += 1) {
+        const delay = orbitDelays[i];
+        const t = Math.min(Math.max((reveal - delay) / (1 - delay), 0), 1);
+        const eased = 1 - (1 - t) * (1 - t) * (1 - t);
+        const drift = reducedMotion ? 0 : Math.sin(elapsed * (1.3 + i * 0.13) + i * 2.1) * 6 * (1 - eased * 0.8);
+        orbitItems[i].style.setProperty("--s", String(0.12 + 0.88 * eased));
+        orbitItems[i].style.setProperty("--rp", String(0.35 + 0.65 * eased));
+        orbitItems[i].style.setProperty("--ao", `${(1 - eased) * (30 + (i % 5) * 12) + drift}deg`);
       }
 
       renderer.render({ scene, camera });
@@ -372,7 +391,7 @@ export function ParticleGlobe() {
             key={beltIndex}
             className="orbitBelt"
             data-speed={belt.speed}
-            style={{ "--r": belt.radius } as CSSProperties}
+            style={{ "--r": belt.radius, "--size": `${belt.size}px` } as CSSProperties}
           >
             {belt.icons.map((Icon, iconIndex) => (
               <span
@@ -385,11 +404,15 @@ export function ParticleGlobe() {
                   } as CSSProperties
                 }
               >
-                <Icon size={17} strokeWidth={1.9} />
+                <Icon size={belt.iconSize} strokeWidth={1.9} />
               </span>
             ))}
           </div>
         ))}
+        <div className="orbitCenterText">
+          <h3>Powered by Kloud</h3>
+          <p>Nodes connect with Kloud to power open computation at scale.</p>
+        </div>
       </div>
     </div>
   );

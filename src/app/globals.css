@@ -79,7 +79,7 @@ a {
 .orbitRing {
   position: fixed;
   z-index: 1;
-  top: calc(50% + 13vh);
+  top: calc(50% + 8vh);
   left: 50%;
   width: 0;
   height: 0;
@@ -99,22 +99,49 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  margin: -21px;
+  width: var(--size, 42px);
+  height: var(--size, 42px);
+  margin: calc(var(--size, 42px) / -2);
   color: #081018;
   border-radius: 50%;
   background: var(--c, #cfe6f7);
   box-shadow: 0 0 18px rgba(39, 143, 236, 0.3);
-  transform: rotate(calc(var(--ring, 0deg) + var(--a, 0deg))) translate(var(--r))
-    rotate(calc(-1 * (var(--ring, 0deg) + var(--a, 0deg))));
+  transform: rotate(calc(var(--ring, 0deg) + var(--a, 0deg) + var(--ao, 0deg)))
+    translate(calc(var(--r) * var(--rp, 1)))
+    rotate(calc(-1 * (var(--ring, 0deg) + var(--a, 0deg) + var(--ao, 0deg))))
+    scale(var(--s, 1));
+}
+
+.orbitCenterText {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: min(400px, 78vw);
+  text-align: center;
+  transform: translate(-50%, -50%);
+  text-shadow: 0 0 24px rgba(2, 3, 6, 0.9);
+}
+
+.orbitCenterText h3 {
+  color: #f4f7fa;
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.orbitCenterText p {
+  margin-top: 10px;
+  color: #8b98a5;
+  font-size: clamp(12px, 1.1vw, 14px);
+  line-height: 1.6;
 }
 
 @media (max-width: 720px) {
   .orbitItem {
-    width: 34px;
-    height: 34px;
-    margin: -17px;
+    width: calc(var(--size, 42px) * 0.8);
+    height: calc(var(--size, 42px) * 0.8);
+    margin: calc(var(--size, 42px) * -0.4);
   }
 }
 
