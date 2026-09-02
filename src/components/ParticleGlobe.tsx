@@ -11,21 +11,21 @@ import { Camera, Geometry, Mesh, Program, Renderer, Transform } from "ogl";
 const orbitBelts = [
   {
     speed: 9,
-    radius: "min(clamp(120px, 19vh, 210px), 24vw)",
+    radius: "min(clamp(180px, 26vh, 280px), 27vw)",
     size: 44,
     iconSize: 17,
     icons: [Cpu, Database, Zap, Lock, Share2, Terminal],
   },
   {
     speed: -6,
-    radius: "min(clamp(175px, 27vh, 300px), 33vw)",
+    radius: "min(clamp(240px, 35vh, 380px), 36vw)",
     size: 35,
     iconSize: 14,
     icons: [Globe2, Server, Cloud, Box, Radio, Wifi, Layers, Shield],
   },
   {
     speed: 4,
-    radius: "min(clamp(230px, 36vh, 400px), 43vw)",
+    radius: "min(clamp(300px, 44vh, 490px), 45vw)",
     size: 27,
     iconSize: 11,
     icons: [Activity, HardDrive, GitBranch, Orbit, Satellite, Binary, Braces, Sparkles, Boxes],
@@ -149,16 +149,10 @@ function createParticles(count: number) {
     state.phi[index] = Math.acos(1 - 2 * distributed);
     state.radius[index] = 0.96 + Math.random() * 0.08;
     state.scatterDist[index] = 0.5 + Math.random() * 1.8;
-    const fast = Math.random() < 0.55;
-    if (fast) {
-      state.launch[index] = 0.4 + Math.random() * 1.2;
-      state.introDelay[index] = Math.random() * 0.15;
-      state.introDuration[index] = 0.6 + Math.random() * 0.5;
-    } else {
-      state.launch[index] = 2 + Math.random() * 5;
-      state.introDelay[index] = 0.25 + Math.random() * 1.1;
-      state.introDuration[index] = 1.1 + Math.random() * 1.7;
-    }
+    const far = Math.pow(Math.random(), 2.4);
+    state.launch[index] = 0.4 + far * 6.6;
+    state.introDelay[index] = far * 0.55 + Math.random() * 0.1;
+    state.introDuration[index] = 0.55 + far * 1.5 + Math.random() * 0.35;
     seeds[index] = Math.random();
   }
 
@@ -350,7 +344,7 @@ export function ParticleGlobe() {
         const delay = orbitDelays[i];
         const t = Math.min(Math.max((reveal - delay) / (1 - delay), 0), 1);
         const eased = 1 - (1 - t) * (1 - t) * (1 - t);
-        const drift = reducedMotion ? 0 : Math.sin(elapsed * (1.3 + i * 0.13) + i * 2.1) * 6 * (1 - eased * 0.8);
+        const drift = reducedMotion ? 0 : Math.sin(elapsed * (1.3 + i * 0.13) + i * 2.1) * 6 * (1 - eased);
         orbitItems[i].style.setProperty("--s", String(0.12 + 0.88 * eased));
         orbitItems[i].style.setProperty("--rp", String(0.35 + 0.65 * eased));
         orbitItems[i].style.setProperty("--ao", `${(1 - eased) * (30 + (i % 5) * 12) + drift}deg`);
